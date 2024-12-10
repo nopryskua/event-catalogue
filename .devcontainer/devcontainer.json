@@ -1,0 +1,12 @@
+{
+    "name": "Go Development Container",
+    "image": "golang:1.21-alpine",  // Slim base image with Go installed
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "golang.Go"
+            ]
+        }
+    }
+  }
+  
