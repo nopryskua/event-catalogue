@@ -1,2 +1,3 @@
-TODO
-1. continue reading https://docs.github.com/en/codespaces/developing-in-a-codespace/developing-in-a-codespace
+# Event Catalogue
+
+Event Catalogue is a platform to view and subscribe to the most interesting event providers.

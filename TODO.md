@@ -1,0 +1,1 @@
+1. Create a docker-compose with the live reload
