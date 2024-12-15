@@ -1,0 +1,6 @@
+tmp_dir = "tmp"
+
+[build]
+  args_bin = []
+  bin = "./tmp/$SERVICE_NAME"
+  cmd = "go build -o ./tmp/$SERVICE_NAME ./cmd/$SERVICE_NAME"

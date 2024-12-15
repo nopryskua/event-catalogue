@@ -1,1 +1,2 @@
-1. Create a docker-compose with the live reload
+1. Use `docker-compose.yml` in the dev container config
+2. Research the queue
