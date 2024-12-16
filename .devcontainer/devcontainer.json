@@ -1,8 +1,8 @@
 {
     "name": "Hello Dev Container",
-    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-    "service": "management-api",
-    "workspace": "/app",
+    "dockerComposeFile": ["../docker-compose.yml", "docker-compose.extend.yml"],
+    "service": "dev-container",
+    "workspaceFolder": "/workspace",
     "features": {
         "ghcr.io/devcontainers/features/go:1": {
             "version": "1.23.1"

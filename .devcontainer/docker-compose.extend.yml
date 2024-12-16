@@ -1,0 +1,7 @@
+services:
+  dev-container:
+    build:
+      context: ./.devcontainer
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace
