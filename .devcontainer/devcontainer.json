@@ -11,8 +11,7 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "ms-azuretools.vscode-docker",
-                "vscodevim.vim"
+                "ms-azuretools.vscode-docker"
             ]
         }
     }
