@@ -1,6 +1,9 @@
-tmp_dir = "tmp"
+tmp_dir = "/tmp"
 
 [build]
-  args_bin = []
-  bin = "./tmp/$SERVICE_NAME"
-  cmd = "go build -o ./tmp/$SERVICE_NAME ./cmd/$SERVICE_NAME"
+  stop_on_error = true
+  bin = "/tmp/$SERVICE_NAME"
+  pre_cmd = ["go mod tidy"]
+  cmd = "go build -o /tmp/$SERVICE_NAME ./cmd/$SERVICE_NAME"
+  poll = true
+  poll_interval = 5000
