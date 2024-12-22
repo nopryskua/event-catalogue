@@ -1,2 +1,5 @@
+Priority:
 1. Research the queue
-2. Configure vim for codespaces
+
+Wishlist:
+1. Configure vim for codespaces
