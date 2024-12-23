@@ -12,7 +12,10 @@
         "vscode": {
             "extensions": [
                 "ms-azuretools.vscode-docker"
-            ]
+            ],
+            "settings": {
+                "go.testFlags": ["-v"]
+            }
         }
     }
 }
