@@ -11,9 +11,10 @@ import (
 )
 
 type rabbitMQProducer[T task.T] struct {
-	url string
-	m   sync.Mutex
-	cl  *rabbitMQ
+	url     string
+	m       sync.RWMutex
+	cl      *rabbitMQ
+	metrics producer.Metrics
 }
 
 // NewProducer creates a RabbitMQ message producer.
@@ -48,11 +49,22 @@ func (p *rabbitMQProducer[T]) Produce(t T) error {
 		return err
 	}
 
+	p.m.Lock()
+	p.metrics.SuccessProduceCount++
+	p.m.Unlock()
+
 	return nil
 }
 
 func (p *rabbitMQProducer[T]) Close() {
 	p.closeClient()
+}
+
+func (p *rabbitMQProducer[T]) Metrics() producer.Metrics {
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	return p.metrics
 }
 
 func (p *rabbitMQProducer[T]) initClient() error {
@@ -65,10 +77,12 @@ func (p *rabbitMQProducer[T]) initClient() error {
 
 	result, err := newRabbitMQ(p.url, util.TypeName[T](), false)
 	if err != nil {
+		p.metrics.ErrorClientInitCount++
 		return err
 	}
 
 	p.cl = result
+	p.metrics.SuccessClientInitCount++
 
 	return nil
 }
@@ -76,6 +90,8 @@ func (p *rabbitMQProducer[T]) initClient() error {
 func (p *rabbitMQProducer[T]) closeClient() {
 	p.m.Lock()
 	defer p.m.Unlock()
+
+	p.metrics.CloseClientCount++
 
 	if p.cl == nil {
 		return

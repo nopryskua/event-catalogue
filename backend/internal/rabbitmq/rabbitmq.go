@@ -10,35 +10,6 @@ type rabbitMQ struct {
 	q    amqp.Queue
 }
 
-func (r *rabbitMQ) Publish(body []byte) error {
-	return r.ch.Publish(
-		"",
-		r.q.Name,
-		false,
-		false,
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "application/json",
-			Body:         []byte(body),
-		})
-}
-func (r *rabbitMQ) Consume() (<-chan amqp.Delivery, error) {
-	return r.ch.Consume(
-		r.q.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-}
-
-func (r *rabbitMQ) Close() {
-	defer r.conn.Close()
-	defer r.ch.Close()
-}
-
 func newRabbitMQ(url string, queueName string, consumer bool) (*rabbitMQ, error) {
 	conn, err := amqp.Dial(url)
 	if err != nil {
@@ -77,4 +48,34 @@ func newRabbitMQ(url string, queueName string, consumer bool) (*rabbitMQ, error)
 		ch:   ch,
 		q:    q,
 	}, nil
+}
+
+func (r *rabbitMQ) Publish(body []byte) error {
+	return r.ch.Publish(
+		"",
+		r.q.Name,
+		false,
+		false,
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Body:         []byte(body),
+		})
+}
+
+func (r *rabbitMQ) Consume() (<-chan amqp.Delivery, error) {
+	return r.ch.Consume(
+		r.q.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+}
+
+func (r *rabbitMQ) Close() {
+	defer r.conn.Close()
+	defer r.ch.Close()
 }

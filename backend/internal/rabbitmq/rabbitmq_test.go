@@ -23,15 +23,14 @@ func TestRabbitMQ(t *testing.T) {
 
 	p, err := rabbitmq.NewProducer[Task](url)
 	require.NoError(t, err)
-	defer p.Close()
 
 	world := "World"
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	var tasExecuted sync.WaitGroup
+	tasExecuted.Add(1)
 
 	run = func(name string) error {
-		defer wg.Done()
+		defer tasExecuted.Done()
 
 		require.Equal(t, world, name)
 
@@ -46,11 +45,24 @@ func TestRabbitMQ(t *testing.T) {
 	c, err := rabbitmq.NewConsumer[Task](url, 1)
 	require.NoError(t, err)
 
+	var gracefullyClosed sync.WaitGroup
+	gracefullyClosed.Add(1)
+
 	go func() {
+		defer gracefullyClosed.Done()
 		c.Consume()
 	}()
 
-	wg.Wait()
+	tasExecuted.Wait()
 
 	c.Close()
+	p.Close()
+
+	gracefullyClosed.Wait()
+
+	m := p.Metrics()
+	require.Equal(t, 1, m.SuccessClientInitCount)
+	require.Equal(t, 0, m.ErrorClientInitCount)
+	require.Equal(t, 1, m.CloseClientCount)
+	require.Equal(t, 1, m.SuccessProduceCount)
 }
