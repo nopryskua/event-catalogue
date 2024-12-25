@@ -26,11 +26,11 @@ func TestRabbitMQ(t *testing.T) {
 
 	world := "World"
 
-	var tasExecuted sync.WaitGroup
-	tasExecuted.Add(1)
+	var taskExecuted sync.WaitGroup
+	taskExecuted.Add(1)
 
 	run = func(name string) error {
-		defer tasExecuted.Done()
+		defer taskExecuted.Done()
 
 		require.Equal(t, world, name)
 
@@ -53,7 +53,7 @@ func TestRabbitMQ(t *testing.T) {
 		c.Consume()
 	}()
 
-	tasExecuted.Wait()
+	taskExecuted.Wait()
 
 	c.Close()
 	p.Close()

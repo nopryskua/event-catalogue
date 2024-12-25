@@ -16,8 +16,13 @@ import (
 type rabbitMQConsumer[T task.T] struct {
 	url    string
 	m      sync.Mutex
-	cls    []*rabbitMQ
+	cls    []rabbitMQWithLock
 	closed bool
+}
+
+type rabbitMQWithLock struct {
+	*rabbitMQ
+	sync.Mutex
 }
 
 // NewConsumer creates a RabbitMQ message consumer.
@@ -37,7 +42,7 @@ func NewConsumer[T task.T](url string, parallelism int) (consumer.T[T], error) {
 
 	return &rabbitMQConsumer[T]{
 		url: url,
-		cls: make([]*rabbitMQ, parallelism),
+		cls: make([]rabbitMQWithLock, parallelism),
 	}, nil
 }
 
@@ -56,6 +61,7 @@ func (c *rabbitMQConsumer[T]) Consume() {
 func (c *rabbitMQConsumer[T]) Close() {
 	c.m.Lock()
 	if c.closed {
+		c.m.Unlock()
 		return
 	}
 
@@ -127,10 +133,10 @@ func (c *rabbitMQConsumer[T]) run(msg amqp.Delivery) (ack bool) {
 }
 
 func (p *rabbitMQConsumer[T]) initClient(i int) error {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.cls[i].Lock()
+	defer p.cls[i].Unlock()
 
-	if p.cls[i] != nil {
+	if p.cls[i].rabbitMQ != nil {
 		return nil
 	}
 
@@ -139,21 +145,21 @@ func (p *rabbitMQConsumer[T]) initClient(i int) error {
 		return err
 	}
 
-	p.cls[i] = result
+	p.cls[i].rabbitMQ = result
 
 	return nil
 }
 
 func (c *rabbitMQConsumer[T]) closeClient(i int) {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.cls[i].Lock()
+	defer c.cls[i].Unlock()
 
-	cl := c.cls[i]
+	cl := c.cls[i].rabbitMQ
 	if cl == nil {
 		return
 	}
 
 	defer cl.Close()
 
-	c.cls[i] = nil
+	c.cls[i].rabbitMQ = nil
 }
