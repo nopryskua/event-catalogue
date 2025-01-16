@@ -13,7 +13,7 @@ import (
 type rabbitMQProducer[T task.T] struct {
 	url     string
 	m       sync.RWMutex
-	cl      *rabbitMQ
+	cl      rabbitMQWithLock
 	metrics producer.Metrics
 }
 
@@ -43,7 +43,7 @@ func (p *rabbitMQProducer[T]) Produce(t T) error {
 		return err
 	}
 
-	if err := p.cl.Publish(b); err != nil {
+	if err := p.publish(b); err != nil {
 		p.closeClient()
 
 		return err
@@ -68,10 +68,10 @@ func (p *rabbitMQProducer[T]) Metrics() producer.Metrics {
 }
 
 func (p *rabbitMQProducer[T]) initClient() error {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.cl.Lock()
+	defer p.cl.Unlock()
 
-	if p.cl != nil {
+	if p.cl.rabbitMQ != nil {
 		return nil
 	}
 
@@ -81,24 +81,40 @@ func (p *rabbitMQProducer[T]) initClient() error {
 		return err
 	}
 
-	p.cl = result
+	p.cl.rabbitMQ = result
+
+	p.m.Lock()
 	p.metrics.SuccessClientInitCount++
+	p.m.Unlock()
 
 	return nil
 }
 
 func (p *rabbitMQProducer[T]) closeClient() {
+	p.cl.Lock()
+	defer p.cl.Unlock()
+
 	p.m.Lock()
-	defer p.m.Unlock()
-
 	p.metrics.CloseClientCount++
+	p.m.Unlock()
 
-	if p.cl == nil {
+	if p.cl.rabbitMQ == nil {
 		return
 	}
 
-	c := p.cl
+	c := p.cl.rabbitMQ
 	defer c.Close()
 
-	p.cl = nil
+	p.cl.rabbitMQ = nil
+}
+
+func (p *rabbitMQProducer[T]) publish(b []byte) error {
+	p.cl.RLock()
+	defer p.cl.RUnlock()
+
+	if p.cl.rabbitMQ == nil {
+		return errors.New("client closed")
+	}
+
+	return p.cl.Publish(b)
 }

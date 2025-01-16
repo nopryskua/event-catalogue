@@ -14,15 +14,16 @@ import (
 )
 
 type rabbitMQConsumer[T task.T] struct {
-	url    string
-	m      sync.Mutex
-	cls    []rabbitMQWithLock
-	closed bool
+	url     string
+	m       sync.RWMutex
+	cls     []rabbitMQWithLock
+	closed  bool
+	metrics consumer.Metrics
 }
 
 type rabbitMQWithLock struct {
 	*rabbitMQ
-	sync.Mutex
+	sync.RWMutex
 }
 
 // NewConsumer creates a RabbitMQ message consumer.
@@ -73,6 +74,13 @@ func (c *rabbitMQConsumer[T]) Close() {
 	}
 }
 
+func (c *rabbitMQConsumer[T]) Metrics() consumer.Metrics {
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	return c.metrics
+}
+
 func (c *rabbitMQConsumer[T]) consumeWithRetry(i int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -94,7 +102,7 @@ func (c *rabbitMQConsumer[T]) consume(i int) error {
 	}
 	defer c.closeClient(i)
 
-	msgs, err := c.cls[i].Consume()
+	msgs, err := c.startConsume(i)
 	if err != nil {
 		return err
 	}
@@ -104,6 +112,10 @@ func (c *rabbitMQConsumer[T]) consume(i int) error {
 		if ack {
 			if err := msg.Ack(false); err != nil {
 				log.Println(err.Error())
+			} else {
+				c.m.Lock()
+				c.metrics.AckCount++
+				c.m.Unlock()
 			}
 
 			continue
@@ -111,6 +123,10 @@ func (c *rabbitMQConsumer[T]) consume(i int) error {
 
 		if err := msg.Nack(false, true); err != nil {
 			log.Println(err.Error())
+		} else {
+			c.m.Lock()
+			c.metrics.NackCount++
+			c.m.Unlock()
 		}
 	}
 
@@ -132,20 +148,28 @@ func (c *rabbitMQConsumer[T]) run(msg amqp.Delivery) (ack bool) {
 	return true
 }
 
-func (p *rabbitMQConsumer[T]) initClient(i int) error {
-	p.cls[i].Lock()
-	defer p.cls[i].Unlock()
+func (c *rabbitMQConsumer[T]) initClient(i int) error {
+	c.cls[i].Lock()
+	defer c.cls[i].Unlock()
 
-	if p.cls[i].rabbitMQ != nil {
+	if c.cls[i].rabbitMQ != nil {
 		return nil
 	}
 
-	result, err := newRabbitMQ(p.url, util.TypeName[T](), true)
+	result, err := newRabbitMQ(c.url, util.TypeName[T](), true)
 	if err != nil {
+		c.m.Lock()
+		c.metrics.ErrorClientInitCount++
+		c.m.Unlock()
+
 		return err
 	}
 
-	p.cls[i].rabbitMQ = result
+	c.m.Lock()
+	c.metrics.SuccessClientInitCount++
+	c.m.Unlock()
+
+	c.cls[i].rabbitMQ = result
 
 	return nil
 }
@@ -159,7 +183,23 @@ func (c *rabbitMQConsumer[T]) closeClient(i int) {
 		return
 	}
 
+	c.m.Lock()
+	c.metrics.CloseClientCount++
+	c.m.Unlock()
+
 	defer cl.Close()
 
 	c.cls[i].rabbitMQ = nil
+}
+
+func (c *rabbitMQConsumer[T]) startConsume(i int) (<-chan amqp.Delivery, error) {
+	c.cls[i].RLock()
+	defer c.cls[i].RUnlock()
+
+	msgs, err := c.cls[i].Consume()
+	if err != nil {
+		return nil, err
+	}
+
+	return msgs, nil
 }

@@ -14,7 +14,7 @@
                 "ms-azuretools.vscode-docker"
             ],
             "settings": {
-                "go.testFlags": ["-v"]
+                "go.testFlags": ["-v", "-race", "-count=1"]
             }
         }
     }

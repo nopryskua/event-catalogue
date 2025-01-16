@@ -8,4 +8,13 @@ type T[M task.T] interface {
 	// The function should be called only once.
 	Consume()
 	Close()
+	Metrics() Metrics
+}
+
+type Metrics struct {
+	SuccessClientInitCount int
+	ErrorClientInitCount   int
+	CloseClientCount       int
+	AckCount               int
+	NackCount              int
 }
